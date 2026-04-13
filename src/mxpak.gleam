@@ -18,7 +18,7 @@ import mxpak/workspace
 import mxpak/workspace/scanner
 import mxpak/workspace/status
 
-pub const version = "0.2.4"
+pub const version = "0.2.5"
 
 pub fn main() {
   ensure_apps_started()

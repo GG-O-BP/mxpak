@@ -69,8 +69,10 @@ fn list_filter_map(
 fn default_config(root: String) -> WorkspaceConfig {
   WorkspaceConfig(
     root: root,
-    // 확장자 기반 — install이 손대지 않는 라이브러리
-    include: ["*.jar"],
+    // 확장자 기반: 위젯(*.mpk) + 라이브러리(*.jar)
+    // install 받은 위젯은 이미 CAS+하드링크 상태라 scan은 사실상 no-op,
+    // Studio Pro가 직접 배치한 위젯은 scan이 처음으로 흡수 → 절감 발생.
+    include: ["*.mpk", "*.jar"],
     // 디렉토리 기반 — Mendix 표준 테마 자산 (확장자 무관 전체 스캔)
     include_dirs: ["themesource"],
     exclude_dirs: [
@@ -80,8 +82,6 @@ fn default_config(root: String) -> WorkspaceConfig {
       "releases", "resources",
       "javascriptsource", "javasource", "mlsource", "modules",
       "theme",
-      // widgets는 mxp install이 CAS+하드링크로 일원 관리
-      "widgets",
       "node_modules",
     ],
   )

@@ -83,7 +83,7 @@ mxp <command> [options]
 | `info <name>` | Show widget details |
 | `audit [project_root]` | Verify SHA-256 integrity of all installed `.mpk` files |
 | `cache clean` | Clean the global cache |
-| `scan [path]` | Deduplicate `*.jar` and `themesource/**` across all projects under the workspace |
+| `scan [path]` | Deduplicate `*.mpk`, `*.jar`, and `themesource/**` across all projects under the workspace |
 | `status [path]` | Show per-project deduplication stats and disc savings |
 
 ## Configuration
@@ -124,11 +124,11 @@ Running `scan` from inside a single Mendix project (where a `*.mpr` lives) print
 
 | Rule | Default value |
 |---|---|
-| `include` | `["*.jar"]` — Java libraries in `userlib/` and `vendorlib/` |
+| `include` | `["*.mpk", "*.jar"]` — widgets and Java libraries (`widgets/`, `userlib/`, `vendorlib/`) |
 | `include_dirs` | `["themesource"]` — Mendix standard theme modules (atlas_core, datawidgets, etc.); all extensions scanned under these directories |
-| `exclude_dirs` | `["widgets", "deployment", "javascriptsource", "javasource", ".mendix-cache", ...]` — build artefacts, project-unique code, and `widgets/` (managed by `install`) |
+| `exclude_dirs` | `["deployment", "javascriptsource", "javasource", "modules", ".mendix-cache", ...]` — build artefacts and project-unique code |
 
-`widgets/` is excluded because `mxp install` already deduplicates it via the CAS — running `scan` over already-linked files would be a no-op.
+`scan` and `install` share the same CAS at `~/.mxpak/store/`. Widgets installed via `mxp install` are already hard-linked into the cache, so `scan` over them is effectively a no-op. Widgets that Mendix Studio Pro placed directly are absorbed into the CAS on the first `scan` and deduplicated thereafter.
 
 ### Customising
 
@@ -136,20 +136,22 @@ Drop a `.mxpak-workspace.toml` in your workspace root to override any of the abo
 
 ```toml
 [scan]
-include      = ["*.jar", "*.mpk"]
+include      = ["*.mpk", "*.jar", "*.zip"]
 include_dirs = ["themesource", "shared"]
-exclude_dirs = [".git", "deployment", "widgets"]
+exclude_dirs = [".git", "deployment"]
 ```
 
 Missing keys fall back to defaults.
 
 ### Measured savings (16 real Mendix projects, ~23 GB total)
 
+`mxp scan` covers everything below in one pass:
+
 | Target | Total | After dedup | Saved | Ratio |
 |---|---|---|---|---|
-| `widgets/*.mpk` (via `install`) | 804 MB | 533 MB | **270 MB** | 33.6% |
-| `*.jar` in userlib/vendorlib (via `scan`) | 534 MB | 222 MB | **311 MB** | 58.3% |
-| `themesource/**` (via `scan`) | 57 MB | 15 MB | **42 MB** | 74.0% |
+| `widgets/*.mpk` | 804 MB | 533 MB | **270 MB** | 33.6% |
+| `*.jar` in userlib/vendorlib | 534 MB | 222 MB | **311 MB** | 58.3% |
+| `themesource/**` | 57 MB | 15 MB | **42 MB** | 74.0% |
 | **Combined** | **1,395 MB** | **770 MB** | **623 MB** | **44.7%** |
 
 ## Licence

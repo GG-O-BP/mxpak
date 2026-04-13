@@ -14,6 +14,9 @@ import mxpak/lockfile
 import mxpak/marketplace
 import mxpak/output
 import mxpak/resolver
+import mxpak/workspace
+import mxpak/workspace/scanner
+import mxpak/workspace/status
 
 pub const version = "0.1.0"
 
@@ -32,6 +35,9 @@ pub fn main() {
     cli.Info(name) -> run_info(name)
     cli.Audit(project_root) -> run_audit(project_root)
     cli.CacheClean -> run_cache_clean()
+    cli.Init(path) -> run_workspace_init(path)
+    cli.Scan(path) -> run_workspace_scan(path)
+    cli.Status(path) -> run_workspace_status(path)
     cli.Version -> io.println("mxpak v" <> version)
     cli.Help -> cli.print_help()
     cli.Unknown(cmd) -> {
@@ -224,6 +230,89 @@ fn run_cache_clean() -> Nil {
   case cache.clean() {
     Ok(_) -> output.log("캐시 삭제 완료")
     Error(msg) -> io.println_error("캐시 삭제 실패: " <> msg)
+  }
+}
+
+// ── workspace ──
+
+fn resolve_workspace_path(path: String) -> String {
+  case path {
+    "" -> "."
+    p -> p
+  }
+}
+
+fn run_workspace_init(path: String) -> Nil {
+  let root = resolve_workspace_path(path)
+  case workspace.init(root) {
+    Ok(_) -> {
+      output.log("워크스페이스 초기화: " <> root)
+      io.println_error("설정: " <> root <> "/.mxpak-workspace.toml")
+    }
+    Error(msg) -> io.println_error("초기화 실패: " <> msg)
+  }
+}
+
+fn run_workspace_scan(path: String) -> Nil {
+  let root = resolve_workspace_path(path)
+  output.log("mxpak v" <> version <> " — 워크스페이스 스캔")
+
+  case workspace.read_config(root) {
+    Ok(config) ->
+      case scanner.scan_and_dedup(config) {
+        Ok(result) -> {
+          io.println_error(
+            "스캔 완료: "
+            <> int_to_string(result.total_files)
+            <> "개 파일, "
+            <> int_to_string(result.unique_hashes)
+            <> "개 고유 해시",
+          )
+          io.println_error(
+            "중복 그룹: "
+            <> int_to_string(result.duplicate_groups)
+            <> ", 링크: "
+            <> int_to_string(result.linked_files)
+            <> "개",
+          )
+          io.println_error(
+            "절감: " <> format_bytes(result.saved_bytes),
+          )
+        }
+        Error(msg) -> io.println_error("스캔 실패: " <> msg)
+      }
+    Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
+  }
+}
+
+fn run_workspace_status(path: String) -> Nil {
+  let root = resolve_workspace_path(path)
+  case workspace.read_config(root) {
+    Ok(config) ->
+      case status.check(config) {
+        Ok(ws_status) -> io.println(status.format(ws_status))
+        Error(msg) -> io.println_error("상태 조회 실패: " <> msg)
+      }
+    Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
+  }
+}
+
+fn int_to_string(n: Int) -> String {
+  string.inspect(n)
+}
+
+fn format_bytes(bytes: Int) -> String {
+  case bytes {
+    b if b >= 1_048_576 -> {
+      let mb = b / 1_048_576
+      let remainder = { b % 1_048_576 } * 10 / 1_048_576
+      int_to_string(mb) <> "." <> int_to_string(remainder) <> " MB"
+    }
+    b if b >= 1024 -> {
+      let kb = b / 1024
+      int_to_string(kb) <> " KB"
+    }
+    b -> int_to_string(b) <> " B"
   }
 }
 

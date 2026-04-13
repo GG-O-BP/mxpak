@@ -41,6 +41,23 @@ pub fn path(hash: String) -> String {
   store.cache_path(hash)
 }
 
+/// 단일 파일을 CAS에 저장 (파일명 보존, 워크스페이스 중복제거용)
+pub fn put_file(
+  data: BitArray,
+  filename: String,
+) -> Result(#(String, String), String) {
+  store.put_file(data, filename)
+}
+
+/// CAS에서 대상 경로에 하드 링크 복원 (범용)
+pub fn restore_file(
+  hash: String,
+  filename: String,
+  target_path: String,
+) -> Result(Nil, String) {
+  store.restore_file(hash, filename, target_path)
+}
+
 /// 전체 캐시 삭제
 pub fn clean() -> Result(Nil, String) {
   store.clean()

@@ -20,6 +20,9 @@ pub type Command {
   Info(name: String)
   Audit(project_root: String)
   CacheClean
+  Init(path: String)
+  Scan(path: String)
+  Status(path: String)
   Version
   Help
   Unknown(cmd: String)
@@ -48,6 +51,12 @@ pub fn parse(args: List(String)) -> Command {
     ["audit"] -> Audit(".")
     ["audit", root] -> Audit(root)
     ["cache", "clean"] -> CacheClean
+    ["init"] -> Init("")
+    ["init", path] -> Init(path)
+    ["scan"] -> Scan("")
+    ["scan", path] -> Scan(path)
+    ["status"] -> Status("")
+    ["status", path] -> Status(path)
     [cmd, ..] -> Unknown(cmd)
   }
 }
@@ -55,7 +64,7 @@ pub fn parse(args: List(String)) -> Command {
 /// 도움말 출력
 pub fn print_help() -> Nil {
   io.println(
-    "mxpak — Mendix 위젯 .mpk 패키지매니저
+    "mxpak — Mendix 위젯/공통파일 패키지매니저
 
 사용법: mxp <command> [options]
 
@@ -70,6 +79,11 @@ pub fn print_help() -> Nil {
   info <name>                      위젯 상세 정보
   audit [project_root]             무결성 검증 (SHA-256)
   cache clean                      글로벌 캐시 정리
+
+워크스페이스:
+  init [path]                      워크스페이스 초기화 (기본: 현재 디렉토리)
+  scan [path]                      파일 스캔 + 중복제거 (CAS + 하드 링크)
+  status [path]                    중복제거 상태 + 절감량 표시
 
 옵션:
   --version, -v                    버전 출력

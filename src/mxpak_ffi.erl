@@ -1,5 +1,5 @@
 -module(mxpak_ffi).
--export([get_arguments/0, ensure_apps_started/0, kill_zombie_chrome/0, get_home_dir/0, make_hard_link/2]).
+-export([get_arguments/0, ensure_apps_started/0, kill_zombie_chrome/0, get_home_dir/0, make_hard_link/2, file_info/1, list_dir_recursive/2]).
 
 %% init:get_plain_arguments()는 gleam run에서는 charlist,
 %% escript에서는 binary를 반환할 수 있음. 양쪽 모두 처리.
@@ -36,6 +36,47 @@ get_home_dir() ->
 make_hard_link(Existing, New) ->
     case file:make_link(binary_to_list(Existing), binary_to_list(New)) of
         ok -> {ok, nil};
+        {error, Reason} ->
+            {error, unicode:characters_to_binary(io_lib:format("~p", [Reason]))}
+    end.
+
+%% 파일 정보 (크기 + inode) — 하드링크 감지용
+file_info(Path) ->
+    case file:read_file_info(binary_to_list(Path)) of
+        {ok, Info} ->
+            Size = element(2, Info),
+            Inode = element(9, Info),
+            {ok, {Size, Inode}};
+        {error, Reason} ->
+            {error, unicode:characters_to_binary(io_lib:format("~p", [Reason]))}
+    end.
+
+%% 재귀 파일 목록 — ExcludeDirs는 바이너리 리스트
+list_dir_recursive(Dir, ExcludeDirs) ->
+    case file:list_dir(binary_to_list(Dir)) of
+        {ok, Entries} ->
+            Files = lists:foldl(
+                fun(EntryL, Acc) ->
+                    Entry = unicode:characters_to_binary(EntryL),
+                    Full = <<Dir/binary, <<"/">>/binary, Entry/binary>>,
+                    case lists:member(Entry, ExcludeDirs) of
+                        true -> Acc;
+                        false ->
+                            case filelib:is_dir(binary_to_list(Full)) of
+                                true ->
+                                    case list_dir_recursive(Full, ExcludeDirs) of
+                                        {ok, Sub} -> Acc ++ Sub;
+                                        _ -> Acc
+                                    end;
+                                false ->
+                                    [Full | Acc]
+                            end
+                    end
+                end,
+                [],
+                Entries
+            ),
+            {ok, Files};
         {error, Reason} ->
             {error, unicode:characters_to_binary(io_lib:format("~p", [Reason]))}
     end.

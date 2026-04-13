@@ -67,7 +67,7 @@ pub fn put(
   }
 }
 
-/// 캐시에서 프로젝트 build/widgets/{name}/ 으로 복사
+/// 캐시에서 프로젝트 build/widgets/{name}/ 으로 하드 링크 (실패 시 복사 폴백)
 pub fn link_to_project(hash: String, target_dir: String) -> Result(Nil, String) {
   let src = cache_path(hash)
   case has(hash) {
@@ -77,7 +77,7 @@ pub fn link_to_project(hash: String, target_dir: String) -> Result(Nil, String) 
         simplifile.create_directory_all(target_dir)
         |> result.map_error(fn(_) { "대상 디렉토리 생성 실패" }),
       )
-      copy_dir(src, target_dir)
+      link_dir(src, target_dir)
     }
   }
 }
@@ -97,19 +97,44 @@ pub fn clean() -> Result(Nil, String) {
 pub fn restore_mpk(hash: String, target_path: String) -> Result(Nil, String) {
   let src = cache_path(hash) <> "/original.mpk"
   case simplifile.is_file(src) {
-    Ok(True) -> {
-      // 대상 파일이 이미 존재하면 삭제 (하드 링크는 기존 파일 위에 생성 불가)
-      let _ = simplifile.delete(target_path)
-      case make_hard_link(src, target_path) {
-        Ok(_) -> Ok(Nil)
-        Error(_) ->
-          // 볼륨이 다르면 하드 링크 불가 → 복사 폴백
-          simplifile.copy_file(src, target_path)
-          |> result.map_error(fn(_) { "mpk 복사 실패: " <> target_path })
-          |> result.map(fn(_) { Nil })
-      }
-    }
+    Ok(True) -> link_file(src, target_path)
     _ -> Error("캐시에 original.mpk가 없습니다: " <> hash)
+  }
+}
+
+/// 단일 파일을 CAS에 저장 (파일명 보존, 워크스페이스 중복제거용)
+pub fn put_file(
+  data: BitArray,
+  filename: String,
+) -> Result(#(String, String), String) {
+  let hash = integrity.sha256(data)
+  let dir = cache_path(hash)
+  case has(hash) {
+    True -> Ok(#(dir, hash))
+    False -> {
+      use _ <- result.try(
+        simplifile.create_directory_all(dir)
+        |> result.map_error(fn(_) { "캐시 디렉토리 생성 실패: " <> dir }),
+      )
+      use _ <- result.try(
+        simplifile.write_bits(dir <> "/" <> filename, data)
+        |> result.map_error(fn(_) { "파일 캐시 저장 실패: " <> filename }),
+      )
+      Ok(#(dir, hash))
+    }
+  }
+}
+
+/// CAS에서 대상 경로에 하드 링크 복원 (범용)
+pub fn restore_file(
+  hash: String,
+  filename: String,
+  target_path: String,
+) -> Result(Nil, String) {
+  let src = cache_path(hash) <> "/" <> filename
+  case simplifile.is_file(src) {
+    Ok(True) -> link_file(src, target_path)
+    _ -> Error("캐시에 파일이 없습니다: " <> hash <> "/" <> filename)
   }
 }
 
@@ -131,32 +156,41 @@ fn dirname(path: String) -> String {
   }
 }
 
-fn copy_dir(src: String, dest: String) -> Result(Nil, String) {
+/// 하드 링크 시도, 실패 시 복사 폴백
+fn link_file(src: String, dest: String) -> Result(Nil, String) {
+  let _ = simplifile.delete(dest)
+  case make_hard_link(src, dest) {
+    Ok(_) -> Ok(Nil)
+    Error(_) ->
+      simplifile.copy_file(src, dest)
+      |> result.map_error(fn(_) { "파일 링크/복사 실패: " <> dest })
+      |> result.map(fn(_) { Nil })
+  }
+}
+
+fn link_dir(src: String, dest: String) -> Result(Nil, String) {
   use files <- result.try(
     simplifile.read_directory(src)
     |> result.map_error(fn(_) { "디렉토리 읽기 실패: " <> src }),
   )
   list.try_each(files, fn(file) {
-    // 원본 .mpk는 프로젝트에 복사하지 않음
+    // 원본 .mpk는 프로젝트에 링크하지 않음
     case file == "original.mpk" {
       True -> Ok(Nil)
-      False -> copy_entry(src <> "/" <> file, dest <> "/" <> file)
+      False -> link_entry(src <> "/" <> file, dest <> "/" <> file)
     }
   })
 }
 
-fn copy_entry(src_path: String, dest_path: String) -> Result(Nil, String) {
+fn link_entry(src_path: String, dest_path: String) -> Result(Nil, String) {
   case simplifile.is_directory(src_path) {
     Ok(True) -> {
       use _ <- result.try(
         simplifile.create_directory_all(dest_path)
         |> result.map_error(fn(_) { "디렉토리 생성 실패" }),
       )
-      copy_dir(src_path, dest_path)
+      link_dir(src_path, dest_path)
     }
-    _ ->
-      simplifile.copy_file(src_path, dest_path)
-      |> result.map_error(fn(_) { "파일 복사 실패: " <> src_path })
-      |> result.map(fn(_) { Nil })
+    _ -> link_file(src_path, dest_path)
   }
 }

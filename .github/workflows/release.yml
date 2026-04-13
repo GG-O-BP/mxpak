@@ -1,0 +1,54 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-escript:
+    name: Build escript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.1"
+          gleam-version: "1.6.1"
+          rebar3-version: "3"
+
+      - name: Download dependencies
+        run: gleam deps download
+
+      - name: Build escript
+        run: |
+          gleam run -m gleescript
+          mv mxpak mxp
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mxp
+            install.sh
+            install.ps1
+          body: |
+            ## Install
+
+            **macOS / Linux**
+
+            ```sh
+            curl -fsSL https://github.com/GG-O-BP/mxpak/releases/latest/download/install.sh | sh
+            ```
+
+            **Windows (PowerShell)**
+
+            ```powershell
+            iwr -useb https://github.com/GG-O-BP/mxpak/releases/latest/download/install.ps1 | iex
+            ```
+
+            Requires Erlang/OTP 26+ on PATH. See README for details.

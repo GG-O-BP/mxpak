@@ -4,8 +4,9 @@
 build/
 erl_crash.dump
 
-# Lock 파일
-manifest.toml
+# gleescript 산출물 (escript)
+/mxpak
+/mxp
 
 # Node
 node_modules/

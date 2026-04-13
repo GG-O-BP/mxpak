@@ -24,6 +24,9 @@ jobs:
       - name: Download dependencies
         run: gleam deps download
 
+      - name: Build project
+        run: gleam build
+
       - name: Build escript
         run: |
           gleam run -m gleescript

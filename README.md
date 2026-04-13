@@ -35,17 +35,27 @@ curl -fsSL https://github.com/GG-O-BP/mxpak/releases/latest/download/install.sh 
 iwr -useb https://github.com/GG-O-BP/mxpak/releases/latest/download/install.ps1 | iex
 ```
 
-Both scripts place the `mxp` escript at `~/.mxpak/bin/` (macOS/Linux) or `%USERPROFILE%\.mxpak\bin\` (Windows). On Windows the installer adds this directory to your user `PATH` automatically. On macOS/Linux, add it yourself:
+Both scripts place the `mxp` escript at `~/.mxpak/bin/` (macOS/Linux) or `%USERPROFILE%\.mxpak\bin\` (Windows).
 
-```sh
-export PATH="$HOME/.mxpak/bin:$PATH"
-```
+**Windows** — the installer adds the directory to your user `PATH` automatically, but the change only takes effect in **new** terminal windows. To use `mxp` immediately in the same session:
 
-Verify:
-
-```sh
+```powershell
+$env:PATH = "$env:USERPROFILE\.mxpak\bin;$env:PATH"
 mxp --version
 ```
+
+**macOS / Linux** — add the directory to your shell rc file yourself:
+
+```sh
+export PATH="$HOME/.mxpak/bin:$PATH"     # add to ~/.zshrc, ~/.bashrc, etc.
+mxp --version
+```
+
+### Troubleshooting
+
+- **`escript: ... command not found`** — Erlang/OTP is missing. Install via the prerequisite step above and re-run the installer.
+- **`mxp: command not found` (after install)** — open a fresh terminal, or apply PATH in the current session as shown above.
+- **`undefined function mxpak:main/0`** — outdated escript bundle. Re-run the installer to fetch the latest release.
 
 ### From source
 

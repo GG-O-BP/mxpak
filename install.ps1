@@ -1,5 +1,5 @@
-# mxpak 설치 스크립트 — Windows (PowerShell)
-# 사용법: iwr -useb https://github.com/GG-O-BP/mxpak/releases/latest/download/install.ps1 | iex
+# mxpak installer for Windows (PowerShell)
+# Usage: iwr -useb https://github.com/GG-O-BP/mxpak/releases/latest/download/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
@@ -12,52 +12,56 @@ function Write-Info  ($msg) { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok    ($msg) { Write-Host $msg -ForegroundColor Green }
 function Write-Err   ($msg) { Write-Host $msg -ForegroundColor Red }
 
-# 1. Erlang 감지
+# 1. Erlang detection
 if (-not (Get-Command escript -ErrorAction SilentlyContinue)) {
-  Write-Err "Erlang/OTP이 필요합니다 (escript 명령을 찾을 수 없음)."
+  Write-Err "Erlang/OTP is required (escript command not found)."
   Write-Host ""
-  Write-Host "설치 방법:"
+  Write-Host "Install with:"
   Write-Host "  winget install Erlang.ErlangOTP"
-  Write-Host "  # 또는: choco install erlang"
+  Write-Host "  # or: choco install erlang"
   Write-Host ""
-  Write-Host "설치 후 새 터미널을 열고 다시 실행하세요."
+  Write-Host "Then open a new terminal and re-run this installer."
   exit 1
 }
 
-# 2. 설치 디렉토리
+# 2. Install directory
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-# 3. escript 다운로드
-Write-Info "mxp 다운로드 중..."
+# 3. Download escript
+Write-Info "Downloading mxp..."
 $Target = Join-Path $InstallDir $BinName
 try {
   Invoke-WebRequest -Uri $DownloadUrl -OutFile $Target -UseBasicParsing
 } catch {
-  Write-Err "다운로드 실패: $_"
+  Write-Err "Download failed: $_"
   exit 1
 }
 
-# 4. .cmd 래퍼 생성 (Windows에서 확장자 없이 실행하려면 필요)
+# 4. .cmd wrapper (so 'mxp' resolves on Windows without an extension)
 $CmdWrapper = Join-Path $InstallDir "$BinName.cmd"
 @"
 @echo off
 escript "%~dp0$BinName" %*
 "@ | Set-Content -Path $CmdWrapper -Encoding ASCII
 
-Write-Ok "설치 완료: $InstallDir"
+Write-Ok "Installed to: $InstallDir"
 
-# 5. PATH 등록 (User scope — 관리자 권한 불필요)
+# 5. Register PATH (User scope, no admin required)
 $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if ($UserPath -notlike "*$InstallDir*") {
   $NewPath = if ([string]::IsNullOrEmpty($UserPath)) { $InstallDir } else { "$UserPath;$InstallDir" }
   [Environment]::SetEnvironmentVariable("PATH", $NewPath, "User")
-  Write-Ok "PATH에 추가했습니다."
+  Write-Ok "Added to user PATH."
   Write-Host ""
-  Write-Info "새 터미널을 열어 다음 명령으로 확인하세요:"
+  Write-Info "Open a NEW terminal, then verify:"
+  Write-Host "  mxp --version"
+  Write-Host ""
+  Write-Info "Or use it in this session right now:"
+  Write-Host "  `$env:PATH = `"$InstallDir;`$env:PATH`""
   Write-Host "  mxp --version"
 } else {
-  Write-Ok "PATH에 이미 등록되어 있습니다."
+  Write-Ok "Already on PATH."
   Write-Host ""
-  Write-Info "다음 명령으로 확인:"
+  Write-Info "Verify with:"
   Write-Host "  mxp --version"
 }

@@ -20,7 +20,6 @@ pub type Command {
   Info(name: String)
   Audit(project_root: String)
   CacheClean
-  Init(path: String)
   Scan(path: String)
   Status(path: String)
   Version
@@ -51,8 +50,6 @@ pub fn parse(args: List(String)) -> Command {
     ["audit"] -> Audit(".")
     ["audit", root] -> Audit(root)
     ["cache", "clean"] -> CacheClean
-    ["init"] -> Init("")
-    ["init", path] -> Init(path)
     ["scan"] -> Scan("")
     ["scan", path] -> Scan(path)
     ["status"] -> Status("")
@@ -80,9 +77,8 @@ pub fn print_help() -> Nil {
   audit [project_root]             무결성 검증 (SHA-256)
   cache clean                      글로벌 캐시 정리
 
-워크스페이스:
-  init [path]                      워크스페이스 초기화 (기본: 현재 디렉토리)
-  scan [path]                      파일 스캔 + 중복제거 (CAS + 하드 링크)
+워크스페이스 (여러 Mendix 프로젝트를 담은 부모 디렉토리에서 실행):
+  scan [path]                      *.jar + themesource/** 중복제거 (CAS + 하드 링크)
   status [path]                    중복제거 상태 + 절감량 표시
 
 옵션:

@@ -3,8 +3,27 @@
 
 %% init:get_plain_arguments()는 gleam run에서는 charlist,
 %% escript에서는 binary를 반환할 수 있음. 양쪽 모두 처리.
+%% Windows escript는 스크립트 경로를 첫 인자로 포함시키므로 제거.
 get_arguments() ->
-    [to_binary(A) || A <- init:get_plain_arguments()].
+    Raw = init:get_plain_arguments(),
+    Cleaned = strip_script_name(Raw),
+    [to_binary(A) || A <- Cleaned].
+
+strip_script_name([]) -> [];
+strip_script_name([First | Rest] = All) ->
+    try escript:script_name() of
+        ScriptName ->
+            FirstStr = case First of
+                B when is_binary(B) -> binary_to_list(B);
+                L when is_list(L) -> L
+            end,
+            case FirstStr =:= ScriptName of
+                true -> Rest;
+                false -> All
+            end
+    catch
+        _:_ -> All
+    end.
 
 to_binary(A) when is_binary(A) -> A;
 to_binary(A) when is_list(A) ->

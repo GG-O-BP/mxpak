@@ -1,5 +1,5 @@
 name = "mxpak"
-version = "0.2.3"
+version = "0.2.4"
 target = "erlang"
 description = "Mendix widget .mpk package manager — search, resolve, download, cache"
 licences = ["MPL-2.0"]

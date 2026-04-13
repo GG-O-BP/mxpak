@@ -18,7 +18,7 @@ import mxpak/workspace
 import mxpak/workspace/scanner
 import mxpak/workspace/status
 
-pub const version = "0.2.3"
+pub const version = "0.2.4"
 
 pub fn main() {
   ensure_apps_started()
@@ -35,7 +35,6 @@ pub fn main() {
     cli.Info(name) -> run_info(name)
     cli.Audit(project_root) -> run_audit(project_root)
     cli.CacheClean -> run_cache_clean()
-    cli.Init(path) -> run_workspace_init(path)
     cli.Scan(path) -> run_workspace_scan(path)
     cli.Status(path) -> run_workspace_status(path)
     cli.Version -> io.println("mxpak v" <> version)
@@ -242,58 +241,84 @@ fn resolve_workspace_path(path: String) -> String {
   }
 }
 
-fn run_workspace_init(path: String) -> Nil {
-  let root = resolve_workspace_path(path)
-  case workspace.init(root) {
-    Ok(_) -> {
-      output.log("워크스페이스 초기화: " <> root)
-      io.println_error("설정: " <> root <> "/.mxpak-workspace.toml")
-    }
-    Error(msg) -> io.println_error("초기화 실패: " <> msg)
-  }
-}
-
 fn run_workspace_scan(path: String) -> Nil {
   let root = resolve_workspace_path(path)
-  output.log("mxpak v" <> version <> " — 워크스페이스 스캔")
-
-  case workspace.read_config(root) {
-    Ok(config) ->
-      case scanner.scan_and_dedup(config) {
-        Ok(result) -> {
-          io.println_error(
-            "스캔 완료: "
-            <> int_to_string(result.total_files)
-            <> "개 파일, "
-            <> int_to_string(result.unique_hashes)
-            <> "개 고유 해시",
-          )
-          io.println_error(
-            "중복 그룹: "
-            <> int_to_string(result.duplicate_groups)
-            <> ", 링크: "
-            <> int_to_string(result.linked_files)
-            <> "개",
-          )
-          io.println_error(
-            "절감: " <> format_bytes(result.saved_bytes),
-          )
-        }
-        Error(msg) -> io.println_error("스캔 실패: " <> msg)
+  case ensure_workspace_root(root) {
+    Error(_) -> Nil
+    Ok(_) -> {
+      output.log("mxpak v" <> version <> " — 워크스페이스 스캔")
+      case workspace.read_config(root) {
+        Ok(config) ->
+          case scanner.scan_and_dedup(config) {
+            Ok(result) -> {
+              io.println_error(
+                "스캔 완료: "
+                <> int_to_string(result.total_files)
+                <> "개 파일, "
+                <> int_to_string(result.unique_hashes)
+                <> "개 고유 해시",
+              )
+              io.println_error(
+                "중복 그룹: "
+                <> int_to_string(result.duplicate_groups)
+                <> ", 링크: "
+                <> int_to_string(result.linked_files)
+                <> "개",
+              )
+              io.println_error("절감: " <> format_bytes(result.saved_bytes))
+            }
+            Error(msg) -> io.println_error("스캔 실패: " <> msg)
+          }
+        Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
       }
-    Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
+    }
   }
 }
 
 fn run_workspace_status(path: String) -> Nil {
   let root = resolve_workspace_path(path)
-  case workspace.read_config(root) {
-    Ok(config) ->
-      case status.check(config) {
-        Ok(ws_status) -> io.println(status.format(ws_status))
-        Error(msg) -> io.println_error("상태 조회 실패: " <> msg)
+  case ensure_workspace_root(root) {
+    Error(_) -> Nil
+    Ok(_) ->
+      case workspace.read_config(root) {
+        Ok(config) ->
+          case status.check(config) {
+            Ok(ws_status) -> io.println(status.format(ws_status))
+            Error(msg) -> io.println_error("상태 조회 실패: " <> msg)
+          }
+        Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
       }
-    Error(msg) -> io.println_error("설정 읽기 실패: " <> msg)
+  }
+}
+
+/// 워크스페이스 루트 검증 — 단일 프로젝트면 안내, 프로젝트 0개면 안내
+fn ensure_workspace_root(root: String) -> Result(Nil, Nil) {
+  case workspace.is_mendix_project_dir(root) {
+    True -> {
+      io.println_error(
+        "이 디렉토리는 단일 Mendix 프로젝트입니다 (*.mpr 발견): " <> root,
+      )
+      io.println_error(
+        "여러 프로젝트를 담은 부모 디렉토리에서 실행하세요. 예:",
+      )
+      io.println_error("  cd .. && mxp scan")
+      Error(Nil)
+    }
+    False ->
+      case workspace.list_projects(root) {
+        Ok([]) -> {
+          io.println_error("스캔할 프로젝트를 찾을 수 없습니다: " <> root)
+          io.println_error(
+            "여러 Mendix 프로젝트(각각 *.mpr 포함)를 담은 디렉토리에서 실행하세요.",
+          )
+          Error(Nil)
+        }
+        Ok(_) -> Ok(Nil)
+        Error(msg) -> {
+          io.println_error("워크스페이스 읽기 실패: " <> msg)
+          Error(Nil)
+        }
+      }
   }
 }
 

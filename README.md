@@ -83,7 +83,6 @@ mxp <command> [options]
 | `info <name>` | Show widget details |
 | `audit [project_root]` | Verify SHA-256 integrity of all installed `.mpk` files |
 | `cache clean` | Clean the global cache |
-| `init [path]` | Initialise a workspace — generate `.mxpak-workspace.toml` with default scan rules |
 | `scan [path]` | Deduplicate `*.jar` and `themesource/**` across all projects under the workspace |
 | `status [path]` | Show per-project deduplication stats and disc savings |
 
@@ -109,16 +108,40 @@ Running `mxp install` generates a lock file (`mxpak.lock`) that pins exact versi
 
 ## Workspace deduplication
 
-`mxp scan` targets shared assets that `install` doesn't manage. Default scan rules in `.mxpak-workspace.toml`:
+`mxp scan` targets shared assets that `install` doesn't manage. **Run it from the parent directory that contains your projects**, e.g.:
+
+```sh
+cd ~/Mendix      # contains TSVE4HMC-main/, ChartTest/, ... as siblings
+mxp scan         # walks every project under the current directory
+mxp status       # show per-project savings
+```
+
+Running `scan` from inside a single Mendix project (where a `*.mpr` lives) prints a clear hint and exits.
+
+### Default rules (zero-config)
+
+`scan` works with sensible defaults out of the box — no setup file required:
+
+| Rule | Default value |
+|---|---|
+| `include` | `["*.jar"]` — Java libraries in `userlib/` and `vendorlib/` |
+| `include_dirs` | `["themesource"]` — Mendix standard theme modules (atlas_core, datawidgets, etc.); all extensions scanned under these directories |
+| `exclude_dirs` | `["widgets", "deployment", "javascriptsource", "javasource", ".mendix-cache", ...]` — build artefacts, project-unique code, and `widgets/` (managed by `install`) |
+
+`widgets/` is excluded because `mxp install` already deduplicates it via the CAS — running `scan` over already-linked files would be a no-op.
+
+### Customising
+
+Drop a `.mxpak-workspace.toml` in your workspace root to override any of the above:
 
 ```toml
 [scan]
-include      = ["*.jar"]            # libraries in userlib/ and vendorlib/
-include_dirs = ["themesource"]      # Mendix standard theme modules (atlas_core, datawidgets, etc.)
-exclude_dirs = ["widgets", "deployment", "javascriptsource", ...]
+include      = ["*.jar", "*.mpk"]
+include_dirs = ["themesource", "shared"]
+exclude_dirs = [".git", "deployment", "widgets"]
 ```
 
-`widgets/` is excluded because `mxp install` already deduplicates it via the CAS — running `scan` over already-linked files would be a no-op.
+Missing keys fall back to defaults.
 
 ### Measured savings (16 real Mendix projects, ~23 GB total)
 

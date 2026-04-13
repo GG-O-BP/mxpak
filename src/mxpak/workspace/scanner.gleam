@@ -24,7 +24,7 @@ pub type ScanResult {
 /// 워크스페이스 스캔 + 중복제거 실행
 pub fn scan_and_dedup(config: WorkspaceConfig) -> Result(ScanResult, String) {
   // 1. 프로젝트 목록 수집
-  use projects <- result.try(workspace.list_projects(config.root))
+  use projects <- result.try(workspace.discover_projects(config.root))
   case projects {
     [] -> Ok(ScanResult(0, 0, 0, 0, 0))
     _ -> {

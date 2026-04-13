@@ -26,7 +26,7 @@ pub type WorkspaceStatus {
 
 /// 워크스페이스 상태 조회 (읽기 전용, 변경 없음)
 pub fn check(config: WorkspaceConfig) -> Result(WorkspaceStatus, String) {
-  use projects <- result.try(workspace.list_projects(config.root))
+  use projects <- result.try(workspace.discover_projects(config.root))
 
   // 프로젝트별 통계 수집
   use project_stats <- result.try(

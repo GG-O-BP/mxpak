@@ -18,7 +18,7 @@ import mxpak/workspace
 import mxpak/workspace/scanner
 import mxpak/workspace/status
 
-pub const version = "0.2.5"
+pub const version = "0.2.6"
 
 pub fn main() {
   ensure_apps_started()
@@ -291,34 +291,21 @@ fn run_workspace_status(path: String) -> Nil {
   }
 }
 
-/// 워크스페이스 루트 검증 — 단일 프로젝트면 안내, 프로젝트 0개면 안내
+/// 스캔 대상 검증 — 프로젝트 0개일 때만 차단
 fn ensure_workspace_root(root: String) -> Result(Nil, Nil) {
-  case workspace.is_mendix_project_dir(root) {
-    True -> {
+  case workspace.discover_projects(root) {
+    Ok([]) -> {
+      io.println_error("Mendix 프로젝트를 찾을 수 없습니다: " <> root)
       io.println_error(
-        "이 디렉토리는 단일 Mendix 프로젝트입니다 (*.mpr 발견): " <> root,
+        "이 디렉토리(또는 그 하위 1단계)에 *.mpr 파일이 있는 디렉토리가 있어야 합니다.",
       )
-      io.println_error(
-        "여러 프로젝트를 담은 부모 디렉토리에서 실행하세요. 예:",
-      )
-      io.println_error("  cd .. && mxp scan")
       Error(Nil)
     }
-    False ->
-      case workspace.list_projects(root) {
-        Ok([]) -> {
-          io.println_error("스캔할 프로젝트를 찾을 수 없습니다: " <> root)
-          io.println_error(
-            "여러 Mendix 프로젝트(각각 *.mpr 포함)를 담은 디렉토리에서 실행하세요.",
-          )
-          Error(Nil)
-        }
-        Ok(_) -> Ok(Nil)
-        Error(msg) -> {
-          io.println_error("워크스페이스 읽기 실패: " <> msg)
-          Error(Nil)
-        }
-      }
+    Ok(_) -> Ok(Nil)
+    Error(msg) -> {
+      io.println_error("프로젝트 검색 실패: " <> msg)
+      Error(Nil)
+    }
   }
 }
 

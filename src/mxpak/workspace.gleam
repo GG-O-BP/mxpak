@@ -33,38 +33,42 @@ pub fn is_mendix_project_dir(root: String) -> Bool {
   }
 }
 
-/// 프로젝트 디렉토리 목록 수집 (워크스페이스 하위 1단계)
-pub fn list_projects(root: String) -> Result(List(String), String) {
-  use entries <- result.try(
-    simplifile.read_directory(root)
-    |> result.map_error(fn(_) { "워크스페이스 디렉토리 읽기 실패: " <> root }),
-  )
-  Ok(
-    list_filter_map(entries, fn(name) {
-      let path = root <> "/" <> name
-      // 숨김 디렉토리(. 접두사) 제외
-      case string.starts_with(name, ".") {
-        True -> Error(Nil)
-        False ->
-          case simplifile.is_directory(path) {
-            Ok(True) -> Ok(path)
-            _ -> Error(Nil)
+/// 스캔 대상 프로젝트 자동 감지
+/// - root 자체가 Mendix 프로젝트(*.mpr 포함) → [root] 단독
+/// - 아니면 root 하위 1단계 중 *.mpr 가진 디렉토리들
+pub fn discover_projects(root: String) -> Result(List(String), String) {
+  case is_mendix_project_dir(root) {
+    True -> Ok([root])
+    False -> {
+      use entries <- result.try(
+        simplifile.read_directory(root)
+        |> result.map_error(fn(_) { "디렉토리 읽기 실패: " <> root }),
+      )
+      let projects =
+        list.filter_map(entries, fn(name) {
+          let path = root <> "/" <> name
+          case string.starts_with(name, ".") {
+            True -> Error(Nil)
+            False ->
+              case simplifile.is_directory(path) {
+                Ok(True) ->
+                  case is_mendix_project_dir(path) {
+                    True -> Ok(path)
+                    False -> Error(Nil)
+                  }
+                _ -> Error(Nil)
+              }
           }
-      }
-    }),
-  )
+        })
+      Ok(projects)
+    }
+  }
 }
+
 
 // ── 내부 ──
 
 import gleam/list
-
-fn list_filter_map(
-  items: List(a),
-  f: fn(a) -> Result(b, Nil),
-) -> List(b) {
-  list.filter_map(items, f)
-}
 
 fn default_config(root: String) -> WorkspaceConfig {
   WorkspaceConfig(

@@ -77,7 +77,7 @@ pub fn print_help() -> Nil {
   audit [project_root]             무결성 검증 (SHA-256)
   cache clean                      글로벌 캐시 정리
 
-워크스페이스 (여러 Mendix 프로젝트를 담은 부모 디렉토리에서 실행):
+중복제거 (단일 Mendix 프로젝트 또는 여러 프로젝트 부모 디렉토리 모두 가능):
   scan [path]                      *.mpk + *.jar + themesource/** 중복제거 (CAS + 하드 링크)
   status [path]                    중복제거 상태 + 절감량 표시
 

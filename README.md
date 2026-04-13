@@ -108,15 +108,23 @@ Running `mxp install` generates a lock file (`mxpak.lock`) that pins exact versi
 
 ## Workspace deduplication
 
-`mxp scan` targets shared assets that `install` doesn't manage. **Run it from the parent directory that contains your projects**, e.g.:
+`mxp scan` auto-detects what to scan based on where you run it:
 
 ```sh
-cd ~/Mendix      # contains TSVE4HMC-main/, ChartTest/, ... as siblings
-mxp scan         # walks every project under the current directory
-mxp status       # show per-project savings
+# Case 1 — inside a single Mendix project (a `*.mpr` is in the directory):
+cd ~/Mendix/TSVE4HMC-main
+mxp scan         # scans this project only
+                 # its assets are absorbed into the global CAS at ~/.mxpak/store/
+                 # future scans of any other project automatically dedup against them
+
+# Case 2 — a directory whose immediate children are Mendix projects:
+cd ~/Mendix      # contains TSVE4HMC-main/, ChartTest/, Blank/, ...
+mxp scan         # scans every Mendix project (every immediate subdir with `*.mpr`)
+
+mxp status       # works the same way (single project or workspace)
 ```
 
-Running `scan` from inside a single Mendix project (where a `*.mpr` lives) prints a clear hint and exits.
+If neither case matches (no `*.mpr` here, none in immediate children), `scan` exits with a clear hint.
 
 ### Default rules (zero-config)
 
